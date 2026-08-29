@@ -1,6 +1,6 @@
 import express from "express";
 import path from "path";
-import { exec } from "child_process";
+import { exec, spawn } from "child_process";
 import { createServer as createViteServer } from "vite";
 
 async function startServer() {
@@ -47,24 +47,43 @@ async function startServer() {
 
   app.post("/api/mcp/execute", (req, res) => {
     const { tool, params } = req.body;
-    const jsonStr = JSON.stringify(params || {}).replace(/"/g, '\\"');
-    
-    let pyCode = "";
-    if (tool === "inspect_fits") {
-      pyCode = `import json; from astro_copilot.core.fits_io import inspect_fits_file; print(json.dumps(inspect_fits_file(**json.loads('${jsonStr}'))))`;
-    } else if (tool === "aperture_photometry") {
-      pyCode = `import json; from astro_copilot.core.photometry import run_aperture_photometry; print(json.dumps(run_aperture_photometry(**json.loads('${jsonStr}'))))`;
-    } else if (tool === "fit_lightcurve") {
-      pyCode = `import json; from astro_copilot.core.lightcurve import fit_and_analyze_lightcurve; print(json.dumps(fit_and_analyze_lightcurve(**json.loads('${jsonStr}'))))`;
-    } else if (tool === "generate_sample_datasets") {
-      pyCode = `import json; from astro_copilot.server import generate_sample_datasets; print(json.dumps(generate_sample_datasets(**json.loads('${jsonStr}'))))`;
-    } else {
+
+    const toolMap: { [key: string]: string } = {
+      "inspect_fits": "astro_copilot.core.fits_io",
+      "aperture_photometry": "astro_copilot.core.photometry",
+      "fit_lightcurve": "astro_copilot.core.lightcurve",
+      "generate_sample_datasets": "astro_copilot.server",
+    };
+
+    const functionMap: { [key: string]: string } = {
+      "inspect_fits": "inspect_fits_file",
+      "aperture_photometry": "run_aperture_photometry",
+      "fit_lightcurve": "fit_and_analyze_lightcurve",
+      "generate_sample_datasets": "generate_sample_datasets",
+    };
+
+    if (!toolMap[tool]) {
       return res.status(400).json({ error: "Unknown tool" });
     }
 
-    exec(`python3 -c "${pyCode}"`, (error, stdout, stderr) => {
-      if (error) {
-        return res.status(500).json({ error: error.message, stderr });
+    const pyCode = `import json, sys; from ${toolMap[tool]} import ${functionMap[tool]}; params = json.loads(sys.stdin.read()); result = ${functionMap[tool]}(**params); print(json.dumps(result))`;
+    const paramsJson = JSON.stringify(params || {});
+
+    const proc = spawn("python3", ["-c", pyCode], { stdio: ["pipe", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+
+    proc.stdout.on("data", (data) => {
+      stdout += data.toString();
+    });
+
+    proc.stderr.on("data", (data) => {
+      stderr += data.toString();
+    });
+
+    proc.on("close", (code) => {
+      if (code !== 0) {
+        return res.status(500).json({ error: "Python execution failed", stderr });
       }
       try {
         const lines = stdout.trim().split("\n");
@@ -75,6 +94,9 @@ async function startServer() {
         res.status(500).json({ error: "Failed to parse Python output", raw: stdout, stderr });
       }
     });
+
+    proc.stdin.write(paramsJson);
+    proc.stdin.end();
   });
 
   app.get("/api/run-tests", (req, res) => {
@@ -134,10 +156,22 @@ async function startServer() {
     if (!branchName) {
       return res.status(400).json({ error: "Branch name is required" });
     }
-    const cmd = createNew ? `git checkout -b ${branchName}` : `git checkout ${branchName}`;
-    exec(cmd, (err, stdout, stderr) => {
-      if (err) {
-        return res.status(500).json({ status: "error", error: err.message, stderr });
+    const args = createNew ? ["checkout", "-b", branchName] : ["checkout", branchName];
+    const proc = spawn("git", args);
+    let stdout = "";
+    let stderr = "";
+
+    proc.stdout.on("data", (data) => {
+      stdout += data.toString();
+    });
+
+    proc.stderr.on("data", (data) => {
+      stderr += data.toString();
+    });
+
+    proc.on("close", (code) => {
+      if (code !== 0) {
+        return res.status(500).json({ status: "error", error: `git command failed`, stderr });
       }
       res.json({ status: "success", output: stdout || stderr });
     });
@@ -146,9 +180,22 @@ async function startServer() {
   app.post("/api/git/commit", (req, res) => {
     const { message } = req.body;
     const commitMsg = message || "Auto-commit by Git Agent";
-    exec(`git add . && git commit -m "${commitMsg.replace(/"/g, '\\"')}"`, (err, stdout, stderr) => {
-      if (err) {
-        return res.status(500).json({ status: "error", error: err.message, stderr });
+
+    const proc = spawn("git", ["commit", "-m", commitMsg]);
+    let stdout = "";
+    let stderr = "";
+
+    proc.stdout.on("data", (data) => {
+      stdout += data.toString();
+    });
+
+    proc.stderr.on("data", (data) => {
+      stderr += data.toString();
+    });
+
+    proc.on("close", (code) => {
+      if (code !== 0) {
+        return res.status(500).json({ status: "error", error: `git commit failed`, stderr });
       }
       res.json({ status: "success", output: stdout || stderr });
     });
@@ -157,10 +204,22 @@ async function startServer() {
   app.post("/api/git/push", (req, res) => {
     const { branch } = req.body;
     const branchName = branch || "main";
-    exec(`git push -u origin ${branchName}`, (err, stdout, stderr) => {
-      if (err) {
-        // If remote origin is not set, report gracefully
-        return res.status(500).json({ status: "error", error: err.message, stderr, hint: "Please configure git remote origin first." });
+
+    const proc = spawn("git", ["push", "-u", "origin", branchName]);
+    let stdout = "";
+    let stderr = "";
+
+    proc.stdout.on("data", (data) => {
+      stdout += data.toString();
+    });
+
+    proc.stderr.on("data", (data) => {
+      stderr += data.toString();
+    });
+
+    proc.on("close", (code) => {
+      if (code !== 0) {
+        return res.status(500).json({ status: "error", error: `git push failed`, stderr, hint: "Please configure git remote origin first." });
       }
       res.json({ status: "success", output: stdout || stderr });
     });
