@@ -12,6 +12,7 @@ from astro_copilot.core.fits_io import inspect_fits_file
 from astro_copilot.core.photometry import run_aperture_photometry
 from astro_copilot.core.lightcurve import fit_and_analyze_lightcurve
 from astro_copilot.core.source_detection import detect_sources
+from astro_copilot.core.spectroscopy import extract_1d_spectrum
 
 # Initialize FastMCP Server
 mcp = FastMCP(
@@ -121,6 +122,36 @@ def detect_sources_auto(
         threshold_sigma=threshold_sigma,
         fwhm=fwhm,
         min_separation=min_separation,
+    )
+
+
+@mcp.tool()
+def extract_spectrum(
+    file_path: str,
+    hdu_index: Optional[int] = None,
+    extraction_method: str = "sum",
+    row_range: Optional[List[int]] = None,
+    wavelength_key: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Extracts a 1D spectrum from 2D spectroscopic FITS data with wavelength calibration.
+
+    Args:
+        file_path: Path to the spectroscopic FITS file (2D image, wavelength × spatial).
+        hdu_index: Target HDU index. If None, auto-selects first 2D image HDU.
+        extraction_method: "sum" (sum spatial axis), "median" (median), or "center" (central row only).
+        row_range: [row_min, row_max] for spatial extraction (if None, uses all rows).
+        wavelength_key: Header keyword for wavelength (e.g. 'CRVAL1', 'WAV0', etc.).
+
+    Returns:
+        Dictionary with 1D spectrum, wavelength array, and detected spectral features.
+    """
+    return extract_1d_spectrum(
+        file_path=file_path,
+        hdu_index=hdu_index,
+        extraction_method=extraction_method,
+        row_range=row_range,
+        wavelength_key=wavelength_key,
     )
 
 
