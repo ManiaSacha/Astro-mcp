@@ -206,6 +206,22 @@ def run_aperture_photometry(
                     "message": "No valid coordinate pairs provided."
                 }
 
+            # Pre-validate all coordinates are within bounds
+            out_of_bounds = []
+            for i, (px, py) in enumerate(pixel_positions):
+                if px < 0 or px >= nx or py < 0 or py >= ny:
+                    out_of_bounds.append((i + 1, px, py, nx, ny))
+
+            if out_of_bounds:
+                msg = f"Source(s) out of bounds (image is {nx}×{ny}): " + "; ".join(
+                    [f"id={idx} at ({x:.1f}, {y:.1f})" for idx, x, y, _, _ in out_of_bounds]
+                )
+                return {
+                    "status": "error",
+                    "error_type": "ValueError",
+                    "message": msg
+                }
+
             # Setup apertures
             apertures = CircularAperture(pixel_positions, r=aperture_radius)
             phot_table = aperture_photometry(data, apertures)
@@ -286,6 +302,17 @@ def run_aperture_photometry(
 
                 mag, mag_err = flux_to_mag(net_flux, flux_err, zero_point=zero_point)
 
+                # Determine quality tier based on SNR and flags
+                if "OK" in flags:
+                    if snr >= 10:
+                        quality_tier = "good"
+                    elif snr >= 3:
+                        quality_tier = "marginal"
+                    else:
+                        quality_tier = "bad"
+                else:
+                    quality_tier = "bad"
+
                 ra_val, dec_val = None, None
                 if celestial_positions[i] is not None:
                     ra_val, dec_val = celestial_positions[i]
@@ -303,6 +330,7 @@ def run_aperture_photometry(
                     "snr": round(snr, 2),
                     "mag": round(mag, 4) if mag is not None else None,
                     "mag_err": round(mag_err, 4) if mag_err is not None else None,
+                    "quality_tier": quality_tier,
                     "flags": flags,
                 })
 

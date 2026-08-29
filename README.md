@@ -79,6 +79,25 @@ python -c "from astro_copilot.server import generate_sample_datasets; \
            generate_sample_datasets('sample_data')"
 ```
 
+## Coordinate Conventions & Tips
+
+### Pixel Coordinate System
+- **Default (0-indexed):** Pixel coordinates follow Python/NumPy conventions where (0, 0) is the bottom-left corner. Use `positions=[[x, y], ...]` directly.
+- **DS9/IRAF (1-indexed):** If your coordinates come from DS9 or IRAF tools, set `one_indexed=True` to automatically convert. This subtracts 1 from each coordinate.
+- **Example:** A source at DS9 position (100, 200) should be passed as `positions=[[100, 200]]` with `one_indexed=True`.
+
+### Aperture Radius Selection
+The aperture radius should be matched to your point-spread function (PSF):
+- **Typical guideline:** 2–3× the FWHM (full width at half maximum) of your stars.
+- **Finding FWHM:** Use `inspect_fits()` on a science frame, then measure a bright, isolated star's width.
+- **Example:** If stars have FWHM ≈ 2.5 pixels, use `aperture_radius=6.0` or `7.0`.
+- **Sky annulus:** Typically set `bkg_annulus_inner` to ~1.5× aperture radius and `bkg_annulus_outer` to ~2.5× aperture radius.
+
+### Celestial Coordinates (RA/Dec)
+Use `sky_coords=[[ra_deg, dec_deg], ...]` if your FITS header contains valid WCS (World Coordinate System) information. The server will automatically convert to pixel positions. If WCS is missing, use pixel coordinates instead.
+
+---
+
 ## API Reference
 
 ### `inspect_fits`
