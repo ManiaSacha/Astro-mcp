@@ -66,6 +66,33 @@ def run_aperture_photometry(
             "message": "Either 'positions' (pixel coords) or 'sky_coords' (RA/Dec) must be provided."
         }
 
+    if aperture_radius <= 0:
+        return {
+            "status": "error",
+            "error_type": "ValueError",
+            "message": f"aperture_radius must be positive (got {aperture_radius})."
+        }
+
+    if bkg_annulus_inner is not None or bkg_annulus_outer is not None:
+        if bkg_annulus_inner is None or bkg_annulus_outer is None:
+            return {
+                "status": "error",
+                "error_type": "ValueError",
+                "message": "Both bkg_annulus_inner and bkg_annulus_outer must be provided together."
+            }
+        if bkg_annulus_inner <= 0 or bkg_annulus_outer <= 0:
+            return {
+                "status": "error",
+                "error_type": "ValueError",
+                "message": f"Annulus radii must be positive (inner={bkg_annulus_inner}, outer={bkg_annulus_outer})."
+            }
+        if bkg_annulus_outer <= bkg_annulus_inner:
+            return {
+                "status": "error",
+                "error_type": "ValueError",
+                "message": f"bkg_annulus_outer ({bkg_annulus_outer}) must be greater than bkg_annulus_inner ({bkg_annulus_inner})."
+            }
+
     try:
         with fits.open(file_path) as hdul:
             # Auto-detect image HDU if not provided
