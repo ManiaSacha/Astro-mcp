@@ -210,7 +210,7 @@ def run_aperture_photometry(
             aperture_area = float(aper_area_val)
             sources_result = []
 
-            for i, (pos, (px, py)) in enumerate(zip(pixel_positions, pixel_positions)):
+            for i, (px, py) in enumerate(pixel_positions):
                 flags = []
                 # Check bounds
                 if px < 0 or px >= nx or py < 0 or py >= ny:
