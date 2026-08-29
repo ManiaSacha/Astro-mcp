@@ -12,6 +12,7 @@ from astropy.timeseries import LombScargle, BoxLeastSquares
 import lightkurve as lk
 
 from astro_copilot.utils.serialization import clean_for_json
+from astro_copilot.core.fits_io import validate_file_path
 
 
 def load_lightcurve_data(
@@ -160,6 +161,14 @@ def fit_and_analyze_lightcurve(
         max_period: Maximum period in days for search grid.
         n_phase_bins: Number of points in phase-binned diagnostic curve.
     """
+    is_valid, validation_error = validate_file_path(file_path)
+    if not is_valid:
+        return {
+            "status": "error",
+            "error_type": "SecurityError",
+            "message": validation_error
+        }
+
     if not os.path.exists(file_path):
         return {
             "status": "error",

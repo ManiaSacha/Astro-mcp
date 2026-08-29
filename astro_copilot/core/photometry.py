@@ -19,6 +19,7 @@ from photutils.aperture import (
 
 from astro_copilot.utils.serialization import clean_for_json
 from astro_copilot.utils.error_models import compute_photometric_uncertainty, flux_to_mag
+from astro_copilot.core.fits_io import validate_file_path
 
 
 def run_aperture_photometry(
@@ -37,7 +38,7 @@ def run_aperture_photometry(
 ) -> Dict[str, Any]:
     """
     Performs circular aperture photometry on target positions or sky coordinates.
-    
+
     Args:
         file_path: Path to the FITS file.
         aperture_radius: Radius of circular aperture in pixels.
@@ -52,6 +53,14 @@ def run_aperture_photometry(
         zero_point: Magnitude zero point (default 25.0).
         saturation_threshold: Saturated pixel threshold.
     """
+    is_valid, validation_error = validate_file_path(file_path)
+    if not is_valid:
+        return {
+            "status": "error",
+            "error_type": "SecurityError",
+            "message": validation_error
+        }
+
     if not os.path.exists(file_path):
         return {
             "status": "error",

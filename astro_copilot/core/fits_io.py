@@ -2,13 +2,31 @@
 FITS I/O, Header parsing, WCS extraction, and robust image statistics.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 import os
 import numpy as np
 from astropy.io import fits
 from astropy.wcs import WCS
 from astropy.stats import mad_std
 from astro_copilot.utils.serialization import clean_for_json
+
+
+def validate_file_path(file_path: str) -> Tuple[bool, Optional[str]]:
+    """
+    Validates file path to prevent directory traversal attacks.
+
+    Returns:
+        (is_valid, error_message)
+    """
+    if not file_path:
+        return False, "File path cannot be empty."
+
+    abs_path = os.path.abspath(file_path)
+
+    if ".." in file_path or abs_path.startswith("//"):
+        return False, f"Path traversal detected in file path: '{file_path}'"
+
+    return True, None
 
 
 def inspect_fits_file(
@@ -20,7 +38,7 @@ def inspect_fits_file(
 ) -> Dict[str, Any]:
     """
     Inspects a FITS file structure, headers, WCS metadata, and data statistics.
-    
+
     Args:
         file_path: Path to the FITS file.
         hdu_index: Optional HDU index. If None, auto-selects first HDU with 2D image data.
@@ -28,6 +46,14 @@ def inspect_fits_file(
         compute_stats: Whether to calculate numerical image statistics.
         saturation_threshold: Pixel value above which pixels are considered saturated.
     """
+    is_valid, validation_error = validate_file_path(file_path)
+    if not is_valid:
+        return {
+            "status": "error",
+            "error_type": "SecurityError",
+            "message": validation_error
+        }
+
     if not os.path.exists(file_path):
         return {
             "status": "error",
