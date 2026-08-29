@@ -164,3 +164,6 @@ Detrends stellar / systematic variability with Savitzky-Golay filtering and fits
   ]
 }
 ```
+-e 
+## Comprehensive Tool Integration
+- Full documentation on MCP tool schemas and client request-response cycles.
