@@ -11,6 +11,7 @@ from fastmcp import FastMCP
 from astro_copilot.core.fits_io import inspect_fits_file
 from astro_copilot.core.photometry import run_aperture_photometry
 from astro_copilot.core.lightcurve import fit_and_analyze_lightcurve
+from astro_copilot.core.source_detection import detect_sources
 
 # Initialize FastMCP Server
 mcp = FastMCP(
@@ -90,6 +91,36 @@ def aperture_photometry(
         read_noise=read_noise,
         zero_point=zero_point,
         saturation_threshold=saturation_threshold,
+    )
+
+
+@mcp.tool()
+def detect_sources_auto(
+    file_path: str,
+    hdu_index: Optional[int] = None,
+    threshold_sigma: float = 5.0,
+    fwhm: Optional[float] = None,
+    min_separation: float = 10.0,
+) -> Dict[str, Any]:
+    """
+    Automatically detects astronomical point sources in a local FITS image using peak-finding and background statistics.
+
+    Args:
+        file_path: Path to the local FITS image file.
+        hdu_index: Target HDU index. If None, auto-selects first 2D image HDU.
+        threshold_sigma: Detection threshold in sigma above background (default 5.0).
+        fwhm: Estimated point-spread function FWHM in pixels. If None, auto-estimated.
+        min_separation: Minimum separation between distinct sources in pixels (default 10.0).
+
+    Returns:
+        Dictionary with detected source positions, peak values, and SNR estimates.
+    """
+    return detect_sources(
+        file_path=file_path,
+        hdu_index=hdu_index,
+        threshold_sigma=threshold_sigma,
+        fwhm=fwhm,
+        min_separation=min_separation,
     )
 
 
