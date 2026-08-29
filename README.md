@@ -79,3 +79,7 @@ python -c "from astro_copilot.server import generate_sample_datasets; generate_s
 pytest -v
 ```
 All 15 unit and integration tests validate standard data pipelines as well as astronomical edge cases.
+-e 
+## Advanced Aperture Photometry & Centroiding
+- Precise centroid algorithms (Gaussian, center of mass, Moffat fitting).
+- Robust background subtraction and aperture correction.
