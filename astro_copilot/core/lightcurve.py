@@ -193,10 +193,22 @@ def fit_and_analyze_lightcurve(
                 "message": f"Insufficient valid data points ({len(t)}) for light curve analysis."
             }
 
-        # Normalize flux if unnormalized (median flux > 10)
+        # Normalize flux for numerical stability in fitting
         median_flux = float(np.nanmedian(f))
         normalized = False
-        if abs(median_flux) > 5.0:
+        normalization_warning = None
+
+        if median_flux == 0.0:
+            return {
+                "status": "error",
+                "error_type": "DataError",
+                "message": "Flux median is zero; cannot normalize or fit light curve."
+            }
+
+        if abs(median_flux) < 1e-6:
+            normalization_warning = f"Flux median is extremely small ({median_flux}); numerical precision issues may occur."
+
+        if abs(median_flux) > 0:
             f = f / median_flux
             if np.any(e > 0):
                 e = e / median_flux
@@ -348,7 +360,7 @@ def fit_and_analyze_lightcurve(
                 "rms_residual": round(rms, 6),
             }
 
-        return clean_for_json({
+        result = {
             "status": "success",
             "file_path": os.path.abspath(file_path),
             "points_count": total_points,
@@ -359,7 +371,10 @@ def fit_and_analyze_lightcurve(
             "model_type": model_type,
             "fit_results": fit_results,
             "phase_binned_curve": phase_binned,
-        })
+        }
+        if normalization_warning:
+            result["normalization_warning"] = normalization_warning
+        return clean_for_json(result)
 
     except Exception as e:
         return clean_for_json({
