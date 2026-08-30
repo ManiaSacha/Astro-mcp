@@ -9,8 +9,6 @@ import numpy as np
 from astropy.io import fits
 from astropy.stats import SigmaClip, gaussian_fwhm_to_sigma
 from photutils.detection import find_peaks
-from photutils.psf import IterativelySubtractedPSFPhotometry
-from photutils.psf import IntegratedGaussianPRF
 from photutils.background import MeanBackground
 
 from astro_copilot.utils.serialization import clean_for_json
