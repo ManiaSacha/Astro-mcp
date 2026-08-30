@@ -29,7 +29,3 @@ astro-copilot = "astro_copilot.server:main"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["astro_copilot*"]
--e 
-[tool.astro_copilot.errors]
-robust_handling = true
-typed_responses = true
